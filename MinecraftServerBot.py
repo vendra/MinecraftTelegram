@@ -56,15 +56,15 @@ class MinecraftServerBot:
         # Terminate First
         if self.process.poll() == None:
             self.process.terminate()
-            time.sleep(5)
+            time.sleep(1)
 
         # Restart the Server
-        process = subprocess.Popen(
+        self.process = subprocess.Popen(
             "java -Xmx" + self.config['SERVER']['Xmx'] + "M -Xms" + self.config['SERVER']['Xms'] + "M -jar " +
             self.config['SERVER']['serverJarPath'] + " nogui")
         time.sleep(3)
-        print("Process PID: " + str(process.pid))
-        if process.poll() == None:
+        print("Process PID: " + str(self.process.pid))
+        if self.process.poll() == None:
             context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
                                  text="Server Online!")
 
