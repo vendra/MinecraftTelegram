@@ -1,1 +1,2 @@
 python-telegram-bot=12.4.2
+psutil=5.7.0
