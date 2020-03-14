@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 from telegram.ext import Updater, CommandHandler
-import configparser
+import configparser, telegram
 import urllib.request
+import time, subprocess
 
 class MinecraftServerBot:
-    def __init__(self, ip, token):
+    def __init__(self, ip, token, process, config):
         self.ip = ip
+        self.process = process
+        self.config = config
         self.updater = Updater(token=token, use_context=True)
         self.dispatcher = self.updater.dispatcher
 
@@ -30,27 +33,51 @@ class MinecraftServerBot:
         self.updater.start_polling()
 
     def start(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML, text="bot test")
+        context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
+                                 text="Hello! Available commands: \n" +
+                                 "\\start\n\\shutdown\n\\restart\n\\status\n\\info")
 
     # TODO Implement? Security access?
     # Use default time? accept as parameter?
     def shutdown(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
-                                 text="Server Shutdown not implemented yet!")
+                                 text="Shutting down the server!")
+        # Terminate
+        if self.process.poll() == None:
+            self.process.terminate()
+
+        context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
+                                 text="Server shutdown!")
 
     # TODO Implement? Security access?
     def restart(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
-                                 text="Server Restart not implemented yet!")
+                                 text="Restarting the server!")
+        # Terminate First
+        if self.process.poll() == None:
+            self.process.terminate()
+            time.sleep(5)
 
-    # TODO Check Server Online/Offline
+        # Restart the Server
+        process = subprocess.Popen(
+            "java -Xmx" + self.config['SERVER']['Xmx'] + "M -Xms" + self.config['SERVER']['Xms'] + "M -jar " +
+            self.config['SERVER']['serverJarPath'] + " nogui")
+        time.sleep(3)
+        print("Process PID: " + str(process.pid))
+        if process.poll() == None:
+            context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
+                                 text="Server Online!")
+
     # TODO Add Connected Players?
     def status(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
-                                 text="<b>Status</b> : Online/Offline\n" +
-                                      "<b>Address</b>: " + self.ip +
-                                      "<b>Players</b>: X")
+        status = 'Offline'
+        if self.process.poll() == None:
+            status = 'Online'
 
+        context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
+                                 text="<b>Status</b> : "+status+"\n" +
+                                      "<b>Address</b>: " + self.ip +
+                                      "<b>Players</b>: X/X")
 
     def info(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, parse_mode=telegram.ParseMode.HTML,
@@ -63,10 +90,17 @@ def main():
     config.read('config.ini')
     config.sections()
 
+    # Get the Server Address
     external_ip = urllib.request.urlopen(config['SETTINGS']['ServiceProvider']).read().decode('utf8')
     print("Machine Address: " + external_ip)
 
-    bot = MinecraftServerBot(external_ip, config['SETTINGS']['TelegramToken'])
+    # Start the Server
+    process = subprocess.Popen("java -Xmx" + config['SERVER']['Xmx'] + "M -Xms" + config['SERVER']['Xms'] + "M -jar " +
+                     config['SERVER']['serverJarPath'] + " nogui")
+    time.sleep(3)
+    print("Process PID: " + str(process.pid))
+
+    bot = MinecraftServerBot(external_ip, config['SETTINGS']['TelegramToken'], process, config)
     bot.start_polling()
 
 
